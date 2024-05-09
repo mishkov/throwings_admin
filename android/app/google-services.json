@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "39397906344",
+    "project_id": "cs2-throwings",
+    "storage_bucket": "cs2-throwings.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:39397906344:android:7186f0548c0aeb413f2f9d",
+        "android_client_info": {
+          "package_name": "com.example.throwings_admin"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBtfUXjK6qlrbicZOQZFQiUl_1MXLvvt7w"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

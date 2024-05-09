@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>API_KEY</key>
+	<string>AIzaSyA1tFOyWCYqD2aeVNOaM6mH2i6ZTeivLGM</string>
+	<key>GCM_SENDER_ID</key>
+	<string>39397906344</string>
+	<key>PLIST_VERSION</key>
+	<string>1</string>
+	<key>BUNDLE_ID</key>
+	<string>com.example.throwingsAdmin</string>
+	<key>PROJECT_ID</key>
+	<string>cs2-throwings</string>
+	<key>STORAGE_BUCKET</key>
+	<string>cs2-throwings.appspot.com</string>
+	<key>IS_ADS_ENABLED</key>
+	<false></false>
+	<key>IS_ANALYTICS_ENABLED</key>
+	<false></false>
+	<key>IS_APPINVITE_ENABLED</key>
+	<true></true>
+	<key>IS_GCM_ENABLED</key>
+	<true></true>
+	<key>IS_SIGNIN_ENABLED</key>
+	<true></true>
+	<key>GOOGLE_APP_ID</key>
+	<string>1:39397906344:ios:595624c566d545a53f2f9d</string>
+</dict>
+</plist>
