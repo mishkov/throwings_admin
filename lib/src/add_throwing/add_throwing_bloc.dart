@@ -105,8 +105,12 @@ class AddThrowingBloc extends Cubit<AddThrowingState> {
     emit(state.copyWith(description: value));
   }
 
-  void setPathToVideo(String value) {
-    emit(state.copyWith(description: value));
+  void setHowToThrowText(String value) {
+    emit(state.copyWith(howToThrowText: value));
+  }
+
+  void setVideo(PlatformFile value) {
+    emit(state.copyWith(video: value));
   }
 
   void setPendingThrowingStepType(ThrowingStepType throwingStepType) {
@@ -133,6 +137,12 @@ class AddThrowingBloc extends Cubit<AddThrowingState> {
         return;
       }
 
+      if (state.video.size == 0) {
+        emit(state.copyWith(message: 'Добавьте видео'));
+
+        return;
+      }
+
       final addedSteps = state.throwingSteps.map((e) => e.type).toSet();
       final requiredSteps = {
         ThrowingStepType.positioning,
@@ -144,7 +154,7 @@ class AddThrowingBloc extends Cubit<AddThrowingState> {
       if (!requiredStepsAdded) {
         emit(state.copyWith(
             message:
-                'Добавте шаги: ${requiredSteps.difference(addedSteps).map((e) => e.readableName).join(', ')}'));
+                'Добавьте шаги: ${requiredSteps.difference(addedSteps).map((e) => e.readableName).join(', ')}'));
 
         return;
       }
@@ -152,6 +162,12 @@ class AddThrowingBloc extends Cubit<AddThrowingState> {
       // load steps images
       final storage = FirebaseStorage.instance;
       final root = storage.ref();
+
+      final videos = root.child('videos');
+      final videoRef = videos.child('${const Uuid().v4()}-${state.video.name}');
+      await videoRef.putData(state.video.bytes!);
+      final videoUrl = await videoRef.getDownloadURL();
+
       final maps = root.child('steps');
 
       Map<ThrowingStep, String> stepToImagePath = {};
@@ -169,6 +185,8 @@ class AddThrowingBloc extends Cubit<AddThrowingState> {
         "map": state._selectedMap.id,
         "grenade": state._selectedGrenade.name,
         'description': state.description,
+        'howToThrowText': state.howToThrowText,
+        'videoUrl': videoUrl,
         "position": {
           'dx': state.selectedPosition.dx,
           'dy': state.selectedPosition.dy,
@@ -211,6 +229,8 @@ class AddThrowingState extends Equatable {
   final List<ThrowingStep> throwingSteps;
   final ThrowingStepType pendingThrowingStepType;
   final PlatformFile pendingThrowingStepImage;
+  final PlatformFile video;
+  final String howToThrowText;
 
   AddThrowingState({
     CS2Map selectedMap = const NoneCS2Map(),
@@ -223,10 +243,13 @@ class AddThrowingState extends Equatable {
     this.throwingSteps = const [],
     PlatformFile? pendingThrowingStepImage,
     this.pendingThrowingStepType = ThrowingStepType.none,
+    PlatformFile? video,
+    this.howToThrowText = '',
   })  : _selectedGrenade = selectedGrenade,
         _selectedMap = selectedMap,
         pendingThrowingStepImage =
-            pendingThrowingStepImage ?? PlatformFile(name: 'none.png', size: 0);
+            pendingThrowingStepImage ?? PlatformFile(name: 'none.png', size: 0),
+        video = video ?? PlatformFile(name: 'none.mp4', size: 0);
 
   CS2Map? get selectedMap {
     return _selectedMap == const NoneCS2Map() ? null : _selectedMap;
@@ -249,6 +272,8 @@ class AddThrowingState extends Equatable {
       throwingSteps,
       pendingThrowingStepType,
       pendingThrowingStepImage,
+      video,
+      howToThrowText,
     ];
   }
 
@@ -263,6 +288,8 @@ class AddThrowingState extends Equatable {
     List<ThrowingStep>? throwingSteps,
     ThrowingStepType? pendingThrowingStepType,
     PlatformFile? pendingThrowingStepImage,
+    PlatformFile? video,
+    String? howToThrowText,
   }) {
     return AddThrowingState(
       maps: maps ?? this.maps,
@@ -276,6 +303,8 @@ class AddThrowingState extends Equatable {
           pendingThrowingStepType ?? this.pendingThrowingStepType,
       pendingThrowingStepImage:
           pendingThrowingStepImage ?? this.pendingThrowingStepImage,
+      video: video ?? this.video,
+      howToThrowText: howToThrowText ?? this.howToThrowText,
     );
   }
 }
