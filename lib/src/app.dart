@@ -3,6 +3,8 @@ import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:throwings_admin/src/add_map/add_map_view.dart';
 import 'package:throwings_admin/src/add_throwing/add_throwing_view.dart';
+import 'package:throwings_admin/src/edit_throwing/edit_throwing_view.dart';
+import 'package:throwings_core/throwings_core.dart';
 
 import 'home/home_view.dart';
 import 'settings/settings_controller.dart';
@@ -69,17 +71,16 @@ class MyApp extends StatelessWidget {
             return MaterialPageRoute<void>(
               settings: routeSettings,
               builder: (BuildContext context) {
-                switch (routeSettings.name) {
-                  case AddThrowingView.routeName:
-                    return const AddThrowingView();
-                  case AddMapView.routeName:
-                    return const AddMapView();
-                  case SettingsView.routeName:
-                    return SettingsView(controller: settingsController);
-                  case HomeView.routeName:
-                  default:
-                    return const HomeView();
-                }
+                return switch (routeSettings.name) {
+                  EditThrowingView.routeName => EditThrowingView(
+                      throwing: routeSettings.arguments as Throwing,
+                    ),
+                  AddThrowingView.routeName => const AddThrowingView(),
+                  AddMapView.routeName => const AddMapView(),
+                  SettingsView.routeName =>
+                    SettingsView(controller: settingsController),
+                  HomeView.routeName || _ => const HomeView(),
+                };
               },
             );
           },

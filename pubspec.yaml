@@ -20,9 +20,12 @@ dependencies:
   flutter_bloc: ^8.1.5
   flutter_localizations:
     sdk: flutter
+  material_design_icons_flutter: ^7.0.7296
   path: ^1.9.0
   uuid: ^4.4.0
   video_player: ^2.8.6
+  throwings_core:
+    path: ../throwings_core/
 
 dev_dependencies:
   flutter_test:
