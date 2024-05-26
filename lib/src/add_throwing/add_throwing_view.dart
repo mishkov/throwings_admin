@@ -1,14 +1,12 @@
 import 'dart:async';
-import 'dart:html' as html;
-import 'dart:io';
+import 'dart:io' as io;
 
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:throwings_admin/src/add_throwing/add_throwing_bloc.dart';
-import 'package:throwings_admin/src/add_throwing/cs2_map.dart';
-import 'package:throwings_admin/src/add_throwing/grenade.dart';
+import 'package:throwings_admin/src/home/home_bloc.dart';
+import 'package:throwings_core/throwings_core.dart';
 import 'package:video_player/video_player.dart';
 
 class AddThrowingView extends StatefulWidget {
@@ -113,7 +111,8 @@ class _AddThrowingViewState extends State<AddThrowingView> {
                   ),
                   const SizedBox(height: 8),
                   TextField(
-                    onChanged: context.read<AddThrowingBloc>().setDescription,
+                    onChanged:
+                        context.read<AddThrowingBloc>().setHowToThrowText,
                     decoration: const InputDecoration(
                       labelText: 'Как бросать гранату',
                       hintText: 'Например, удерживать D или с прыжком',
@@ -122,8 +121,10 @@ class _AddThrowingViewState extends State<AddThrowingView> {
                   const SizedBox(height: 8),
                   const Text('Click on map to set grenade position'),
                   if (state.selectedMap != null)
-                    SizedBox(
-                      height: 600,
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(
+                        maxHeight: 600,
+                      ),
                       child: AspectRatio(
                         aspectRatio: 1,
                         child: ConstrainedBox(
@@ -189,40 +190,19 @@ class _AddThrowingViewState extends State<AddThrowingView> {
                       );
 
                       if (result != null) {
-                        if (kIsWeb) {
-                          // https://stackoverflow.com/questions/73405538/flutter-videoplayer-from-bytes
-                          // html.VideoElement videoElement;
-                          // videoElement = html.VideoElement();
-                          // final blob = html.Blob([result.files.single.bytes]);
-                          // final url = html.Url.createObjectUrl(blob);
-                          // videoElement.load();
-                          // videoElement.src = url;
-                          // _controller = VideoPlayerController.networkUrl(
-                          //     Uri.parse(videoElement.currentSrc));
-                          final blob = html.Blob([result.files.single.bytes]);
-                          final url = html.Url.createObjectUrlFromBlob(blob);
-                          _controller = VideoPlayerController.network(url);
-                          _controller!.initialize().then((_) {
-                            // Ensure the first frame is shown after the video is initialized, even before the play button has been pressed.
-                            setState(() {});
-                          });
-                        } else {
-                          final videoFile = File(result.files.single.path!);
+                        final videoFile = io.File(result.files.single.path!);
 
-                          _controller = VideoPlayerController.file(videoFile);
-                          _controller!.initialize().then((_) {
-                            // Ensure the first frame is shown after the video is initialized, even before the play button has been pressed.
-                            setState(() {});
-                          });
-                        }
+                        _controller = VideoPlayerController.file(videoFile);
+                        _controller!.initialize().then((_) {
+                          // Ensure the first frame is shown after the video is initialized, even before the play button has been pressed.
+                          setState(() {});
+                        });
 
                         if (mounted && context.mounted) {
                           context
                               .read<AddThrowingBloc>()
                               .setVideo(result.files.single);
                         }
-                      } else {
-                        // User canceled the picker
                       }
                     },
                     child: const Text(
@@ -238,7 +218,6 @@ class _AddThrowingViewState extends State<AddThrowingView> {
                           Expanded(
                             child: AspectRatio(
                               aspectRatio: _controller!.value.aspectRatio,
-                              // TODO: extract preview to separate widget
                               child: VideoPlayer(_controller!),
                             ),
                           ),
@@ -287,15 +266,15 @@ class _AddThrowingViewState extends State<AddThrowingView> {
                       return Card(
                         child: ListTile(
                           title: Text(step.type.readableName),
-                          subtitle: Text(step.file.name),
+                          subtitle: Text(step.imageFile.name ?? 'No name'),
                           leading: ConstrainedBox(
                             constraints: const BoxConstraints(
                               maxWidth: 100,
                               maxHeight: 100,
                             ),
-                            child: step.file.bytes != null
-                                ? Image.memory(
-                                    step.file.bytes!,
+                            child: step.imageFile.path?.isNotEmpty ?? false
+                                ? Image.file(
+                                    io.File(step.imageFile.path!),
                                   )
                                 : const Icon(
                                     Icons.hide_image_rounded,
@@ -315,8 +294,23 @@ class _AddThrowingViewState extends State<AddThrowingView> {
                   ),
                   const SizedBox(height: 16),
                   ElevatedButton(
-                    onPressed: () {
-                      context.read<AddThrowingBloc>().submitAdding();
+                    onPressed: () async {
+                      final needToFetchUpdatedThrowings =
+                          await context.read<AddThrowingBloc>().submitAdding();
+
+                      if (!needToFetchUpdatedThrowings) {
+                        return;
+                      }
+
+                      if (!mounted || !context.mounted) {
+                        return;
+                      }
+
+                      await context.read<HomeBloc>().fetchData();
+
+                      if (!mounted || !context.mounted) {
+                        return;
+                      }
                     },
                     child: const Text(
                       'Добавить',
@@ -398,13 +392,13 @@ class _AddThrowingViewState extends State<AddThrowingView> {
                 ),
               ),
               const SizedBox(height: 8),
-              if (state.pendingThrowingStepImage.bytes != null)
+              if (state.pendingThrowingStepImage.size > 0)
                 SizedBox(
                   height: 300,
                   child: AspectRatio(
                     aspectRatio: 1,
-                    child: Image.memory(
-                      state.pendingThrowingStepImage.bytes!,
+                    child: Image.file(
+                      io.File(state.pendingThrowingStepImage.path!),
                     ),
                   ),
                 ),
@@ -437,94 +431,5 @@ class _AddThrowingViewState extends State<AddThrowingView> {
         });
       },
     );
-  }
-}
-
-extension on Grenade {
-  String get readableName => switch (this) {
-        Grenade.flashbang => 'Флешка',
-        Grenade.molotov => 'Молотов',
-        Grenade.highExplosive => 'Хаешка',
-        Grenade.smoke => 'Дым',
-        Grenade.none => 'Не определено',
-      };
-}
-
-enum ThrowingStepType {
-  positioning,
-  aiming,
-  zoomedAiming,
-  additional,
-  result,
-  none,
-}
-
-extension ReadableThrowingStepType on ThrowingStepType {
-  String get readableName => switch (this) {
-        ThrowingStepType.positioning => 'позиционирование',
-        ThrowingStepType.aiming => 'прицеливание',
-        ThrowingStepType.zoomedAiming => 'приближенное прицеливание',
-        ThrowingStepType.additional => 'дополнительно',
-        ThrowingStepType.result => 'результат раскидки',
-        ThrowingStepType.none => 'Не определено',
-      };
-}
-
-class VideoPlayerWidget extends StatefulWidget {
-  final Uint8List videoBytes;
-
-  const VideoPlayerWidget({super.key, required this.videoBytes});
-
-  @override
-  State<VideoPlayerWidget> createState() => _VideoPlayerWidgetState();
-}
-
-class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
-  late VideoPlayerController _controller;
-  late html.VideoElement _videoElement;
-
-  @override
-  void initState() {
-    super.initState();
-    _videoElement = html.VideoElement();
-
-    // Register an event listener to track when the video has loaded
-    _videoElement.addEventListener('loaded metadata', (_) {
-      _initializeVideoPlayer();
-    });
-
-    // Convert the byte array to a blob and set it as the video source
-    final blob = html.Blob([widget.videoBytes]);
-    final url = html.Url.createObjectUrl(blob);
-    _videoElement.src = url;
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    _videoElement.pause();
-    _videoElement.removeAttribute('src');
-    html.Url.revokeObjectUrl(_videoElement.src);
-    super.dispose();
-  }
-
-  Future<void> _initializeVideoPlayer() async {
-    _controller = VideoPlayerController.network(_videoElement.currentSrc!);
-    await _controller.initialize();
-    await _controller.setLooping(true);
-    _controller.play();
-    setState(() {});
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (_controller.value.isInitialized) {
-      return AspectRatio(
-        aspectRatio: _controller.value.aspectRatio,
-        child: VideoPlayer(_controller),
-      );
-    } else {
-      return Container();
-    }
   }
 }

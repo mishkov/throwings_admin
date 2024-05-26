@@ -1,3 +1,4 @@
+import 'dart:io' as io;
 import 'dart:ui';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -5,11 +6,8 @@ import 'package:equatable/equatable.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:throwings_admin/src/add_throwing/add_throwing_view.dart';
-import 'package:throwings_admin/src/add_throwing/cs2_map.dart';
-import 'package:throwings_admin/src/add_throwing/grenade.dart';
-import 'package:throwings_admin/src/add_throwing/throwing_step.dart';
-import 'package:throwings_admin/src/core/throw_in_debug.dart';
+import 'package:throwings_admin/src/add_throwing/picked_file_to_core_file.dart';
+import 'package:throwings_core/throwings_core.dart';
 import 'package:uuid/uuid.dart';
 
 class AddThrowingBloc extends Cubit<AddThrowingState> {
@@ -58,7 +56,7 @@ class AddThrowingBloc extends Cubit<AddThrowingState> {
         throwingSteps: List.of(state.throwingSteps)
           ..add(
             ThrowingStep(
-              file: state.pendingThrowingStepImage,
+              imageFile: state.pendingThrowingStepImage.toCoreFile(),
               type: state.pendingThrowingStepType,
             ),
           ),
@@ -117,30 +115,31 @@ class AddThrowingBloc extends Cubit<AddThrowingState> {
     emit(state.copyWith(pendingThrowingStepType: throwingStepType));
   }
 
-  Future<void> submitAdding() async {
+  /// Return true if throwings was successfully added.
+  Future<bool> submitAdding() async {
     try {
       if (state.selectedMap == null) {
         emit(state.copyWith(message: 'Выберите карту'));
 
-        return;
+        return false;
       }
 
       if (state.selectedGrenade == null) {
         emit(state.copyWith(message: 'Выберите тип гранат'));
 
-        return;
+        return false;
       }
 
       if (state.selectedPosition == Offset.zero) {
         emit(state.copyWith(message: 'Выберите позицию'));
 
-        return;
+        return false;
       }
 
       if (state.video.size == 0) {
         emit(state.copyWith(message: 'Добавьте видео'));
 
-        return;
+        return false;
       }
 
       final addedSteps = state.throwingSteps.map((e) => e.type).toSet();
@@ -156,7 +155,7 @@ class AddThrowingBloc extends Cubit<AddThrowingState> {
             message:
                 'Добавьте шаги: ${requiredSteps.difference(addedSteps).map((e) => e.readableName).join(', ')}'));
 
-        return;
+        return false;
       }
 
       // load steps images
@@ -165,18 +164,21 @@ class AddThrowingBloc extends Cubit<AddThrowingState> {
 
       final videos = root.child('videos');
       final videoRef = videos.child('${const Uuid().v4()}-${state.video.name}');
-      await videoRef.putData(state.video.bytes!);
-      final videoUrl = await videoRef.getDownloadURL();
+      await videoRef.putFile(io.File(state.video.path!));
 
       final maps = root.child('steps');
 
-      Map<ThrowingStep, String> stepToImagePath = {};
+      Map<ThrowingStep, String> pathTostepImage = {};
       for (final step in state.throwingSteps) {
-        final mapRef = maps.child('${const Uuid().v4()}-${step.file.name}');
-        await mapRef.putData(step.file.bytes!);
-        final downlaodUrl = await mapRef.getDownloadURL();
+        final stepRef =
+            maps.child('${const Uuid().v4()}-${step.imageFile.name}');
+        assert(
+          step.imageFile.path != null,
+          'Make sure you have set the [throwings_core.File.path] when adding the step.',
+        );
+        await stepRef.putFile(io.File(step.imageFile.path!));
 
-        stepToImagePath[step] = downlaodUrl;
+        pathTostepImage[step] = stepRef.fullPath;
       }
 
       final db = FirebaseFirestore.instance;
@@ -186,7 +188,7 @@ class AddThrowingBloc extends Cubit<AddThrowingState> {
         "grenade": state._selectedGrenade.name,
         'description': state.description,
         'howToThrowText': state.howToThrowText,
-        'videoUrl': videoUrl,
+        'videoPath': videoRef.fullPath,
         "position": {
           'dx': state.selectedPosition.dx,
           'dy': state.selectedPosition.dy,
@@ -195,7 +197,7 @@ class AddThrowingBloc extends Cubit<AddThrowingState> {
           for (final step in state.throwingSteps)
             {
               'type': step.type.name,
-              'pathToImage': stepToImagePath[step],
+              'pathToImage': pathTostepImage[step],
             },
         ],
       };
@@ -207,9 +209,13 @@ class AddThrowingBloc extends Cubit<AddThrowingState> {
           message: 'DocumentSnapshot added with ID: ${doc.id}',
         ),
       );
+
+      return true;
     } catch (error) {
       emit(state.copyWith(message: 'Ошибка: $error'));
       throwInDebug(error);
+
+      return false;
     }
   }
 
